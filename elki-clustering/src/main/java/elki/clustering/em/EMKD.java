@@ -200,7 +200,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
       
       LOG.verbose(Arrays.toString(tcenter));
       models.get(i).setCenter(tcenter);
-      double[][] tcov = times(newstats[i].cov_swxx,1./FastMath.exp(newstats[i].logApriori_sw))/*minus(, timesTranspose(tcenter, tcenter))*/;
+      double[][] tcov = minus(times(newstats[i].cov_swxx,1./*/FastMath.exp(newstats[i].logApriori_sw)*/), timesTranspose(tcenter, tcenter));
       LOG.verbose("cov");
       for(int j = 0; j < tcov.length;j++) {
         LOG.verbose(Arrays.toString(tcov[j]));
@@ -418,6 +418,8 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
             cov[d1][d2] += (value1 - center[d1]) * (value2 - center[d2]);
           }
         }
+        if(iter.valid())
+          iter.advance();
       }
       for(int d1 = 0; d1 < dim; d1++) {
         for(int d2 = 0; d2 < dim; d2++) {
