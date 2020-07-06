@@ -20,7 +20,6 @@
  */
 package elki.clustering.em;
 
-
 import static elki.math.linearalgebra.VMath.times;
 import static elki.math.linearalgebra.VMath.minus;
 import static elki.math.linearalgebra.VMath.plus;
@@ -58,7 +57,6 @@ import elki.utilities.optionhandling.parameters.IntParameter;
 import elki.utilities.optionhandling.parameters.ObjectParameter;
 
 import net.jafama.FastMath;
-import sun.rmi.runtime.Log;
 
 public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering<M>> {
   //
@@ -68,7 +66,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
   private EMClusterModelFactory<NumberVector, M> mfactory;
 
   private static final Logging LOG = Logging.getLogger(EMKD.class);
-  
+
   private static final double MIN_LOGLIKELIHOOD = -100000;
 
   /**
@@ -85,16 +83,15 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
    * Soft assignment result type.
    */
   public static final SimpleTypeInformation<double[]> SOFT_TYPE = new SimpleTypeInformation<>(double[].class);
-  
+
   private int k = 3;
 
   // currently not used
   private int miniter;
 
   private int maxiter;
-  
-  protected ArrayModifiableDBIDs sorted;
 
+  protected ArrayModifiableDBIDs sorted;
 
   public EMKD(int k, double delta, EMClusterModelFactory<NumberVector, M> mfactory, int miniter, int maxiter, boolean soft) {
     this.k = k;
@@ -103,16 +100,18 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     this.miniter = miniter;
     this.maxiter = maxiter;
     this.soft = soft;
-    }
-  
+  }
+
   /**
-   * I took the run method from EM.java and I am rewriting it to work on KD trees.
+   * I took the run method from EM.java and I am rewriting it to work on KD
+   * trees.
+   * 
    * @param relation
    * @return
    */
   public Clustering<M> run(Relation<? extends NumberVector> relation) {
-    
-    double[] test = {2.,1.};
+
+    double[] test = { 2., 1. };
     double[][] test2 = timesTranspose(test, test);
     for(int i = 0; i < test2.length; i++) {
       LOG.verbose(Arrays.toString(test2[i]));
@@ -120,11 +119,11 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     if(relation.size() == 0) {
       throw new IllegalArgumentException("database empty: must contain elements");
     }
-    //build kd-tree
+    // build kd-tree
     sorted = DBIDUtil.newArray(relation.getDBIDs());
     double[] dimwidth = analyseDimWidth(relation);
     mrkdNode tree = new mrkdNode(relation, sorted.iter(), 0, sorted.size(), dimwidth);
-    
+
     LOG.verbose("root:");
     double[][] rootcov = tree.cov;
     LOG.verbose("center:");
@@ -133,35 +132,37 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     for(int i = 0; i < rootcov.length; i++) {
       LOG.verbose(Arrays.toString(rootcov[i]));
     }
-    
+
     // initial models
-    ArrayList<? extends EMClusterModel<NumberVector, M>> models = new ArrayList<EMClusterModel<NumberVector,M>>(mfactory.buildInitialModels(relation, k));
+    ArrayList<? extends EMClusterModel<NumberVector, M>> models = new ArrayList<EMClusterModel<NumberVector, M>>(mfactory.buildInitialModels(relation, k));
     WritableDataStore<double[]> probClusterIGivenX = DataStoreUtil.makeStorage(relation.getDBIDs(), DataStoreFactory.HINT_HOT | DataStoreFactory.HINT_SORTED, double[].class);
     double loglikelihood = assignProbabilitiesToInstances(relation, models, probClusterIGivenX);
-    //DoubleStatistic likestat = new DoubleStatistic(this.getClass().getName() + ".loglikelihood");
-    //LOG.statistics(likestat.setDouble(loglikelihood));
+    // DoubleStatistic likestat = new DoubleStatistic(this.getClass().getName()
+    // + ".loglikelihood");
+    // LOG.statistics(likestat.setDouble(loglikelihood));
 
     // iteration unless no change
     int it = 0;
-    //double bestloglikelihood = loglikelihood; // For detecting instabilities.
+    // double bestloglikelihood = loglikelihood; // For detecting instabilities.
     for(; it < maxiter || maxiter < 0; it++) {
-      
+
       // recalculate probabilities
       ClusterData[] newstats = makeStats(tree, relation.size(), models);
-      
+
       updateClusters(newstats, models, relation.size());
       // here i need to finish the makeStats and then apply them
-      
-      //LOG.statistics(likestat.setDouble(loglikelihood));
-      //if(loglikelihood - bestloglikelihood > delta) {
-        //lastimprovement = it;
-        //bestloglikelihood = loglikelihood;
-      //}
-      //if(it >= miniter && (Math.abs(loglikelihood - oldloglikelihood) <= delta || lastimprovement < it >> 1)) {
-      //  break;
-      //}
+
+      // LOG.statistics(likestat.setDouble(loglikelihood));
+      // if(loglikelihood - bestloglikelihood > delta) {
+      // lastimprovement = it;
+      // bestloglikelihood = loglikelihood;
+      // }
+      // if(it >= miniter && (Math.abs(loglikelihood - oldloglikelihood) <=
+      // delta || lastimprovement < it >> 1)) {
+      // break;
+      // }
     }
-    //LOG.statistics(new LongStatistic(KEY + ".iterations", it));
+    // LOG.statistics(new LongStatistic(KEY + ".iterations", it));
 
     // fill result with clusters and models
     List<ModifiableDBIDs> hardClusters = new ArrayList<>(k);
@@ -170,7 +171,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     }
 
     loglikelihood = assignProbabilitiesToInstances(relation, models, probClusterIGivenX);
-    
+
     // provide a hard clustering
     // add each point to cluster of max density
     for(DBIDIter iditer = relation.iterDBIDs(); iditer.valid(); iditer.advance()) {
@@ -193,16 +194,18 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
 
   private void updateClusters(ClusterData[] newstats, ArrayList<? extends EMClusterModel<NumberVector, M>> models, int size) {
     for(int i = 0; i < k; i++) {
-      models.get(i).setWeight(FastMath.exp(newstats[i].logApriori_sw - FastMath.log(size)));
-      // this might need to change to a set / get method and not a tvar method bcause models might apply changes during set
+      double prob = FastMath.exp(newstats[i].logApriori_sw - FastMath.log(size));
+      models.get(i).setWeight(prob);
+      // this might need to change to a set / get method and not a tvar method
+      // bcause models might apply changes during set
       // this doesnt affect it currently as there are no changes made so far
-      double[] tcenter = times(newstats[i].center_swx, 1./FastMath.exp(newstats[i].logApriori_sw));
-      
+      double[] tcenter = times(newstats[i].center_swx, 1. / FastMath.exp(newstats[i].logApriori_sw));
+      LOG.verbose("center:");
       LOG.verbose(Arrays.toString(tcenter));
       models.get(i).setCenter(tcenter);
-      double[][] tcov = minus(times(newstats[i].cov_swxx,1./FastMath.exp(newstats[i].logApriori_sw)), timesTranspose(tcenter, tcenter));
+      double[][] tcov = minus(times(newstats[i].cov_swxx, 1. / FastMath.exp(newstats[i].logApriori_sw)), timesTranspose(tcenter, tcenter));
       LOG.verbose("cov");
-      for(int j = 0; j < tcov.length;j++) {
+      for(int j = 0; j < tcov.length; j++) {
         LOG.verbose(Arrays.toString(tcov[j]));
       }
       models.get(i).updateCovariance(tcov);
@@ -214,28 +217,44 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
       ClusterData[] res = new ClusterData[k];
       // logarithmic probabilities of clusters in this node
       double[] logProb = new double[k];
-      
+
       for(int i = 0; i < k; i++) {
         logProb[i] = models.get(i).estimateLogDensity(DoubleVector.copy(node.center));
       }
-      
+
       double logDenSum = logSumExp(logProb);
-      logProb = minus(logProb,logDenSum);
-      
-      for(int c = 0; c < logProb.length; c++) {
-        double logAPrio = logProb[c] + FastMath.log(node.size);
-        double[] center = times(times(node.center, FastMath.exp(logProb[c])),node.size);
-        double[][] cov = new double[node.center.length][];
-        for(int dim = 0; dim < cov.length; dim++) {//maybe exchange this? it is maybe at the cholsky, but i dont actually think so
-          cov[dim] = times(times(node.cov[dim], FastMath.exp(logProb[c])),node.size);
+      logProb = minus(logProb, logDenSum);
+
+      if(node.size > 1) {
+        for(int c = 0; c < logProb.length; c++) {
+          double logAPrio = logProb[c] + FastMath.log(node.size);
+          double[] center = times(times(node.center, FastMath.exp(logProb[c])), node.size);
+          double[][] cov = new double[node.center.length][];
+          for(int dim = 0; dim < cov.length; dim++) {// maybe exchange this? it
+                                                     // is
+                                                     // maybe at the cholsky,
+                                                     // but
+                                                     // i dont actually think so
+            cov[dim] = times(times(node.cov[dim], FastMath.exp(logProb[c])), node.size);
+          }
+          res[c] = new ClusterData(logAPrio, center, cov);
+          // ~~ThisStep is for the approximation part currently left out
+          // weightedAppliedThisStep[c] += FastMath.exp(logAPrio);
         }
-        res[c] = new ClusterData(logAPrio,center,cov);
-        // ~~ThisStep is for the approximation part currently left out
-        //weightedAppliedThisStep[c] += FastMath.exp(logAPrio);
       }
-      //pointsWorkedThisStep += node.size;
+      else {
+        for(int c = 0; c < logProb.length; c++) {
+          double logAPrio = logProb[c];
+          double prob = FastMath.exp(logProb[c]);
+          double[] swx = times(node.center, prob);
+          double[][] swxx = times(timesTranspose(node.center, node.center), prob);
+          res[c] = new ClusterData(logAPrio, swx, swxx);
+        }
+      }
+      // pointsWorkedThisStep += node.size;
       return res;
-    }else {
+    }
+    else {
       ClusterData[] lData = makeStats(node.leftChild, numP, models);
       ClusterData[] rData = makeStats(node.rightChild, numP, models);
       for(int c = 0; c < lData.length; c++) {
@@ -244,14 +263,21 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
       return lData;
     }
   }
-/**
- * helper method to retrieve the widths of all data in all dimensions
- * @param relation
- * @return
- */
+
+  /**
+   * helper method to retrieve the widths of all data in all dimensions
+   * 
+   * @param relation
+   * @return
+   */
   private double[] analyseDimWidth(Relation<? extends NumberVector> relation) {
     DBIDIter it = relation.iterDBIDs();
     int d = relation.get(it).getDimensionality();
+    // TODO remove TEST
+    if(true) {
+      return new double[d];
+    }
+    // TEST
     double[][] arr = new double[d][2];
     for(int i = 0; i < d; i++) {
       arr[i][0] = Double.MAX_VALUE;
@@ -261,8 +287,8 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
       NumberVector x = relation.get(it);
       for(int i = 0; i < d; i++) {
         double t = x.doubleValue(i);
-        arr[i][0] = arr[i][0] < t? arr[i][0]:t;
-        arr[i][1] = arr[i][1] > t? arr[i][1]:t;
+        arr[i][0] = arr[i][0] < t ? arr[i][0] : t;
+        arr[i][1] = arr[i][1] > t ? arr[i][1] : t;
       }
     }
     for(int i = 0; i < d; i++) {
@@ -270,7 +296,6 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     }
     return result;
   }
-  
 
   /**
    * Assigns the current probability values to the instances in the database and
@@ -279,10 +304,10 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
    * Computed as the sum of the logarithms of the prior probability of each
    * instance.
    * 
-   * @param relation the database used for assignment to instances
-   * @param models Cluster models
+   * @param relation           the database used for assignment to instances
+   * @param models             Cluster models
    * @param probClusterIGivenX Output storage for cluster probabilities
-   * @param <O> Object type
+   * @param <O>                Object type
    * @return the expectation value of the current mixture of distributions
    */
   public static <O> double assignProbabilitiesToInstances(Relation<? extends O> relation, List<? extends EMClusterModel<O, ?>> models, WritableDataStore<double[]> probClusterIGivenX) {
@@ -305,7 +330,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     }
     return emSum / relation.size();
   }
-  
+
   /**
    * Compute log(sum(exp(x_i)), with attention to numerical issues.
    * 
@@ -328,8 +353,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     }
     return acc > 1. ? (max + FastMath.log(acc)) : max;
   }
-  
-  
+
   // while calculation its in log
   static class ClusterData {
     double logApriori_sw;
@@ -345,18 +369,21 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     }
 
     void combine(ClusterData other) {
-      this.logApriori_sw = FastMath.log(FastMath.exp(other.logApriori_sw)+FastMath.exp(this.logApriori_sw));
-      
-      this.center_swx = plus(this.center_swx,other.center_swx);
-      
+      this.logApriori_sw = FastMath.log(FastMath.exp(other.logApriori_sw) + FastMath.exp(this.logApriori_sw));
+
+      this.center_swx = plus(this.center_swx, other.center_swx);
+
       this.cov_swxx = plus(this.cov_swxx, other.cov_swxx);
     }
   }
-  
+
   class mrkdNode {
     mrkdNode leftChild, rightChild;
+
     int leftBorder;
+
     int rightBorder;
+
     boolean isLeaf = false;
 
     double[] center;
@@ -372,7 +399,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
        * other kdtrees seem to look at [left, right[
        */
       int dim = relation.get(iter).toArray().length;
-      
+
       leftBorder = left;
       rightBorder = right;
       center = new double[dim];
@@ -407,8 +434,10 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
       iter.seek(left);
 
       // cov - is this "textbook"?
-      // here lies a problem. It seems that this makes it impossible to implement circle and stuff.
-      // to know this though, i need to take a second look at the paper and what gets calculated where.
+      // here lies a problem. It seems that this makes it impossible to
+      // implement circle and stuff.
+      // to know this though, i need to take a second look at the paper and what
+      // gets calculated where.
       for(int i = 0; i < size; i++) {
         NumberVector vector = relation.get(iter);
         for(int d1 = 0; d1 < dim; d1++) {
@@ -423,17 +452,17 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
       }
       for(int d1 = 0; d1 < dim; d1++) {
         for(int d2 = 0; d2 < dim; d2++) {
-          cov[d1][d2] = cov[d1][d2] / (double)size;
+          cov[d1][d2] = cov[d1][d2] / (double) size;
         }
       }
 
       final int splitDim = argmax(hyperboundingbox[2]);
       if(hyperboundingbox[2][splitDim] < .1 * dimwidth[splitDim]) {
         isLeaf = true;
-//        LOG.verbose("following has " + size + " Points:");
-//        for(int i = 0;  i < dim; i++) {
-//          LOG.verbose(Arrays.toString(cov[i]));
-//        } 
+        // LOG.verbose("following has " + size + " Points:");
+        // for(int i = 0; i < dim; i++) {
+        // LOG.verbose(Arrays.toString(cov[i]));
+        // }
         return;
       }
 
@@ -457,8 +486,8 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
         isLeaf = true;
         return;
       }
-      leftChild = new mrkdNode(relation, iter, left, r,dimwidth);
-      rightChild = new mrkdNode(relation, iter, r, right,dimwidth);
+      leftChild = new mrkdNode(relation, iter, left, r, dimwidth);
+      rightChild = new mrkdNode(relation, iter, r, right, dimwidth);
     }
 
     /*
@@ -506,6 +535,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     }
     */
   }
+
   /**
    * Parameterization class.
    * 
@@ -587,9 +617,10 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
 
     @Override
     public EMKD<M> make() {
-      return new EMKD<>(k, delta, initializer, miniter , maxiter, false);
+      return new EMKD<>(k, delta, initializer, miniter, maxiter, false);
     }
   }
+
   @Override
   public TypeInformation[] getInputTypeRestriction() {
     return TypeUtil.array(TypeUtil.NUMBER_VECTOR_FIELD);
