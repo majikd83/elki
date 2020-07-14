@@ -229,13 +229,14 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
         for(int c = 0; c < logProb.length; c++) {
           double logAPrio = logProb[c] + FastMath.log(node.size);
           double[] center = times(times(node.center, FastMath.exp(logProb[c])), node.size);
+          double[][] tcov = timesTranspose(node.center, node.center);
           double[][] cov = new double[node.center.length][];
           for(int dim = 0; dim < cov.length; dim++) {// maybe exchange this? it
                                                      // is
                                                      // maybe at the cholsky,
                                                      // but
                                                      // i dont actually think so
-            cov[dim] = times(times(node.cov[dim], FastMath.exp(logProb[c])), node.size);
+            cov[dim] = times(times(tcov[dim], FastMath.exp(logProb[c])), node.size);
           }
           res[c] = new ClusterData(logAPrio, center, cov);
           // ~~ThisStep is for the approximation part currently left out
@@ -274,9 +275,9 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
     DBIDIter it = relation.iterDBIDs();
     int d = relation.get(it).getDimensionality();
     // TODO remove TEST
-    if(true) {
-      return new double[d];
-    }
+//    if(true) {
+//      return new double[d];
+//    }
     // TEST
     double[][] arr = new double[d][2];
     for(int i = 0; i < d; i++) {
@@ -459,7 +460,7 @@ public class EMKD<M extends MeanModel> implements ClusteringAlgorithm<Clustering
       final int splitDim = argmax(hyperboundingbox[2]);
       if(hyperboundingbox[2][splitDim] < .1 * dimwidth[splitDim]) {
         isLeaf = true;
-        // LOG.verbose("following has " + size + " Points:");
+        LOG.verbose("following has " + size + " Points:");
         // for(int i = 0; i < dim; i++) {
         // LOG.verbose(Arrays.toString(cov[i]));
         // }
