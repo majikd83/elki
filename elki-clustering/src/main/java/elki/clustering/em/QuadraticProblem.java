@@ -289,7 +289,7 @@ public class QuadraticProblem {
     }
     // Because we have a quadratic formula with optimum outside of the bounds,
     // the function is monotonic inside the bounds.
-    if(argmax >= lowerBound && argmax <= upperBound) {
+    if(!(argmax >= lowerBound && argmax <= upperBound)) {
       double lowerBoundValue = 0.5 * a * lowerBound * lowerBound + b * lowerBound + c;
       double higherBoundValue = 0.5 * a * upperBound * upperBound + b * upperBound + c;
       max = lowerBoundValue >= higherBoundValue ? lowerBoundValue : higherBoundValue;
