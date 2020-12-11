@@ -22,6 +22,8 @@ package elki.clustering.em;
 
 import static elki.math.linearalgebra.VMath.*;
 
+import java.util.Arrays;
+
 import elki.data.NumberVector;
 import elki.data.model.EMModel;
 import elki.logging.Logging;
@@ -300,10 +302,14 @@ public class MultivariateGaussianModel implements EMClusterModel<NumberVector, E
         s += s;
       }
       // this if keeps the original behavior of a silent level 1 sing. cheat
+      LOG.warning("ding");
       if(c > 1) {
         LOG.warning("A Cluster has degenerated. For further operability, A Singualrity cheat was applied.\n"//
             + "This drives the covariance matrix towards the unit matrix");
         LOG.warning("singularity cheat used " + c + " times!");
+        for(double[] ds : cov) {
+          LOG.warning(Arrays.toString(ds));
+        }
       }
     }
     this.covariance = cov;
