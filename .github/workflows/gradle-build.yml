@@ -20,4 +20,10 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew --no-daemon build
+    - name: Test with Gradle
+      run: ./gradlew --no-daemon check
+    - name: Code Coverage
+      run: ./gradlew --no-daemon :codeCoverageReport -Pjacoco
+    - name: Upload coverage to codecov.io
+      uses: codecov/codecov-action@v1
